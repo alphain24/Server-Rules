@@ -1,0 +1,9 @@
+{
+  "commands.server-rules.accept.success": "You have accepted the server rules. Welcome!",
+  "commands.server-rules.accept.already": "You have already accepted the server rules.",
+  "commands.server-rules.decline.kick": "You must accept the server rules to play on this server.",
+  "commands.server-rules.timeout.kick": "You did not accept the server rules in time.",
+  "commands.server-rules.reload.all": "Cleared all accepted players. Everyone must re-accept the rules.",
+  "commands.server-rules.reload.player": "Removed acceptance for %s. They must accept the rules again.",
+  "commands.server-rules.restriction": "You must accept the server rules before you can do this. Use /rules to view them."
+}
