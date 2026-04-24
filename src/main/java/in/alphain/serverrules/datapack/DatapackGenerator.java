@@ -71,18 +71,52 @@ public final class DatapackGenerator {
                     MIN_PACK_FORMAT_MAJOR, MIN_PACK_FORMAT_MINOR,
                     MAX_PACK_FORMAT_MAJOR, MAX_PACK_FORMAT_MINOR);
 
+    // ---------------------------------------------------------------------
+    // Baked player-head profiles for the Accept / Decline buttons.
+    //
+    // We embed the full profile (name + UUID int-array + signed textures
+    // property) rather than a bare {name: "..."} so the heads render
+    // instantly, survive on offline-mode / firewalled servers, and can't
+    // get "stuck" as Steve if Mojang's session server is slow or blocked.
+    // The values below came from:
+    //   GET  api.mojang.com/users/profiles/minecraft/{name}           -> UUID
+    //   GET  sessionserver.mojang.com/session/minecraft/profile/{uuid}?unsigned=false
+    //
+    // If either player changes their skin, replace the corresponding
+    // _TEXTURE / _SIGNATURE constants with the fresh values from that
+    // same endpoint.
+    // ---------------------------------------------------------------------
+
+    // Alphain_  UUID 39657019-744d-49e9-832b-edf4daec6aba
+    private static final String ACCEPT_HEAD_NAME = "Alphain_";
+    private static final String ACCEPT_HEAD_ID =
+            "[962949145, 1951222249, -2094273036, -622040390]";
+    private static final String ACCEPT_HEAD_TEXTURE =
+            "ewogICJ0aW1lc3RhbXAiIDogMTc3NzAyNTg4NTcxMiwKICAicHJvZmlsZUlkIiA6ICIzOTY1NzAxOTc0NGQ0OWU5ODMyYmVkZjRkYWVjNmFiYSIsCiAgInByb2ZpbGVOYW1lIiA6ICJBbHBoYWluXyIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS9kMTU3MmRkYjVhMGUxY2M5NGFhYjAxZTk3MmU0MWZkZmNiMmYwODg0MzdmNTMzODkyN2ZlMWNjNmUxZGE3MTZmIgogICAgfQogIH0KfQ==";
+    private static final String ACCEPT_HEAD_SIGNATURE =
+            "IZw4rfb4XuOqeA/z4Sm7Ca9a2zTHIl9G65NWRFLgMA8phVH6ecL6tUawc3ddHsMH+lWgnygWpGfqghXBvjgF6PEgdwsrm4IWFIlj8rTAYpgSaCbSUPk+7QDoQuOaQdzE31E/BmfJyqNOrPCAUxzGpZ+5TJCHpBa6b3DU82GmME9uk5X98J7603vRCZXmfEQ7ESYsnejGE+sN4kvcPrmspKpuCZLjH9N2MkYlwIzmZ402xfbiNOWmiGsIc4/i2Iw61owwX8FNbZZlpfd/168vG+q0hrpQ2tZTHBF5F1mtKIYbU7jRMBPG7da/1pVihjJvya/jEvG9q2NhwUdOVDDgZRMPCEEu5yzZOqJIkblKEXQsjtdHHFaZkkWVk4U5Qh8Bme7y4OqUnYU/B8DYBM9wZ2i9+JV1yfZHLvNF6qB1725kXW9Q3Vv5/VMQrmqe11nQcAN6MyhPBGYEtj8UzODBWzi5R6CMuW/WVhSAlqjc91q5caW+9PW7dIolmkglrJtLrbe1slk/cRWQ1ruXyB15Y4U7KDKV/F36FfU5dBV0Mrwa1oIwJ7rntlN6QvHNoRV35T2yFR1Qj4eUk8zbXigV50ndCgIJvbBPfGOlNfoGEtwCiTaHHApt8pc/qI0CJjCMinu9NwhmSQTJLoWdjO2S1dSPbwq8VvHytFsjIwgtK2g=";
+
+    // _3RACHA  UUID b2c7d5dd-482d-4a61-bf38-004a8032b6a6
+    private static final String DECLINE_HEAD_NAME = "_3RACHA";
+    private static final String DECLINE_HEAD_ID =
+            "[-1295526435, 1210927713, -1086848950, -2144160090]";
+    private static final String DECLINE_HEAD_TEXTURE =
+            "ewogICJ0aW1lc3RhbXAiIDogMTc3NzAyNTg4NTY2OCwKICAicHJvZmlsZUlkIiA6ICJiMmM3ZDVkZDQ4MmQ0YTYxYmYzODAwNGE4MDMyYjZhNiIsCiAgInByb2ZpbGVOYW1lIiA6ICJfM1JBQ0hBIiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzIyMWE3MmRlOGE2MmY5N2E0M2JlMzE2ZTgwNjk1MjRhMjQ0OGYyODg5MzAyNWZhNmQ4NTliYmRjYmU2MDE3YjYiCiAgICB9LAogICAgIkNBUEUiIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzIzNDBjMGUwM2RkMjRhMTFiMTVhOGIzM2MyYTdlOWUzMmFiYjIwNTFiMjQ4MWQwYmE3ZGVmZDYzNWNhN2E5MzMiCiAgICB9CiAgfQp9";
+    private static final String DECLINE_HEAD_SIGNATURE =
+            "StQupvLeq4CJjMfLJAru4aOmslgEwSjfjB0dGyOp1BRLRr+KkiVlvOZ1uT5zojHf4+xysZ0vULBS0cbH/0iPQmTXojQugQWN6Ue3g8UNFW2XciKRoIyQBHNsew+pZ11arRVUiYfAoQ1sxXE2+cRu10Bdm4+y09jgX+7oxidssUUmwk/oT4IiRiE5haQ1LB7yJjlMu+rq1Bja679aMjwligFLkvqx+40YXNJ3oMNyAhrbPHT68pIeGyb/tgKmFkMlv3GX6UeyXzp9NbuyMxHW91vnp6jHr1/AkbdgSaMnPdQEbYRCYB2Vc37a9HwHANjUkNkZVPCZvEacDZr6Q653qaqbuyqfeRoJAQzUY/AwhbzId2HGyOsufLI4P7jl9R92hqP9ynYb5lrmyHFsJenPhHjxADXvMFMPVjxirJ/9vReqD1JsxePWcNFj26c09s1YBnfR7gIbkKPFhity0uVdJj8AhGzw4+M1IAwbAWDiXzd80BG248K7qHIGRbOLekx0hdqmFsfLXfhvd26HfH+AaTte2J23hRNRjdKpOVnPZ0t9pqOCCbBzONHuHdpps7YiP4JhahtDvaVVia+cXdO5Vq8SGTBE3buniC/3O2VO+lyH+/1srCWcmR2CJYmPYB9oBUcdpIwMRjSRR9QCVCimQWJNvZ87n3INw62FsJ6AsNY=";
+
     /**
      * Default menu definition written on first install (Inventory Menu schema).
      *
      * Layout (1-indexed {@code [row, col]} inside a 3×9 chest):
      * <pre>
      *   Row 2 — three enchanted-book rule categories.
-     *   Row 3 — player-head Accept (alphain) and Decline (_3RACHA) buttons
+     *   Row 3 — player-head Accept (Alphain_) and Decline (_3RACHA) buttons
      *           that run {@code /rules accept} and {@code /rules decline}
      *           via Inventory Menu's "command" action.
      * </pre>
      */
-    private static final String DEFAULT_RULES_JSON = """
+    private static final String DEFAULT_RULES_JSON = ("""
             {
               "name": {
                 "text": "Server Rules",
@@ -165,7 +199,17 @@ public final class DatapackGenerator {
                   "item": {
                     "id": "minecraft:player_head",
                     "components": {
-                      "minecraft:profile": {"name": "alphain"},
+                      "minecraft:profile": {
+                        "name": "%s",
+                        "id": %s,
+                        "properties": [
+                          {
+                            "name": "textures",
+                            "value": "%s",
+                            "signature": "%s"
+                          }
+                        ]
+                      },
                       "minecraft:custom_name": {
                         "text": "ACCEPT",
                         "color": "green",
@@ -192,7 +236,17 @@ public final class DatapackGenerator {
                   "item": {
                     "id": "minecraft:player_head",
                     "components": {
-                      "minecraft:profile": {"name": "_3RACHA"},
+                      "minecraft:profile": {
+                        "name": "%s",
+                        "id": %s,
+                        "properties": [
+                          {
+                            "name": "textures",
+                            "value": "%s",
+                            "signature": "%s"
+                          }
+                        ]
+                      },
                       "minecraft:custom_name": {
                         "text": "DECLINE",
                         "color": "red",
@@ -214,7 +268,9 @@ public final class DatapackGenerator {
                 }
               ]
             }
-            """;
+            """).formatted(
+                    ACCEPT_HEAD_NAME, ACCEPT_HEAD_ID, ACCEPT_HEAD_TEXTURE, ACCEPT_HEAD_SIGNATURE,
+                    DECLINE_HEAD_NAME, DECLINE_HEAD_ID, DECLINE_HEAD_TEXTURE, DECLINE_HEAD_SIGNATURE);
 
     private DatapackGenerator() {}
 
@@ -269,11 +325,17 @@ public final class DatapackGenerator {
                 String existing = Files.readString(menuFile);
                 boolean hasAccept = existing.contains("rules accept");
                 boolean hasDecline = existing.contains("rules decline");
-                if (!hasAccept || !hasDecline) {
+                // A profile baked with a signed texture always contains the
+                // word "signature". Earlier builds wrote {name:"alphain"}
+                // stubs without it, which rely on Mojang resolution and
+                // frequently render as the default Steve head. Treat those
+                // as legacy and force an upgrade.
+                boolean hasBakedHeads = existing.contains("\"signature\"");
+                if (!hasAccept || !hasDecline || !hasBakedHeads) {
                     Files.writeString(menuFile, DEFAULT_RULES_JSON);
                     wrote = true;
                     ServerRules.LOGGER.info(
-                            "[ServerRules] Upgraded legacy menu file at {} (missing accept/decline buttons). " +
+                            "[ServerRules] Upgraded legacy menu file at {} (missing accept/decline buttons or baked head textures). " +
                             "Create an empty '.customized' file next to it to skip future auto-upgrades.",
                             menuFile);
                 } else {
