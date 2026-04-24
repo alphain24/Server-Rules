@@ -144,6 +144,8 @@ public final class DatapackGenerator {
                   },
                   "action": {
                     "type": "command",
+                    "as_player": true,
+                    "silent": true,
                     "command": "rules accept"
                   }
                 },
@@ -163,6 +165,8 @@ public final class DatapackGenerator {
                   },
                   "action": {
                     "type": "command",
+                    "as_player": true,
+                    "silent": true,
                     "command": "rules decline"
                   }
                 }
@@ -178,8 +182,13 @@ public final class DatapackGenerator {
      * <p>{@code pack.mcmeta} is always refreshed so pack-format bumps
      * survive a Minecraft update. {@code rules.json} is only written
      * on first install to preserve operator edits.
+     *
+     * @return {@code true} if any file was written (caller should
+     *         reload resources / re-enable the datapack), or
+     *         {@code false} if everything was already up-to-date.
      */
-    public static void generateIfMissing(MinecraftServer server) {
+    public static boolean generateIfMissing(MinecraftServer server) {
+        boolean wrote = false;
         try {
             Path datapackDir = server.getWorldPath(LevelResource.DATAPACK_DIR).resolve(DATAPACK_NAME);
             Files.createDirectories(datapackDir);
@@ -189,6 +198,7 @@ public final class DatapackGenerator {
             boolean needsWrite = !Files.exists(packMeta) || !Files.readString(packMeta).equals(PACK_MCMETA);
             if (needsWrite) {
                 Files.writeString(packMeta, PACK_MCMETA);
+                wrote = true;
                 ServerRules.LOGGER.info("[ServerRules] Wrote pack.mcmeta (max_format={}, min_format=[{}, {}]).",
                         MAX_PACK_FORMAT, MIN_PACK_FORMAT_MAJOR, MIN_PACK_FORMAT_MINOR);
             }
@@ -202,6 +212,7 @@ public final class DatapackGenerator {
             Path menuFile = menuDir.resolve(MENU_ID + ".json");
             if (!Files.exists(menuFile)) {
                 Files.writeString(menuFile, DEFAULT_RULES_JSON);
+                wrote = true;
                 ServerRules.LOGGER.info("[ServerRules] Datapack generated at {}", datapackDir);
             } else {
                 ServerRules.LOGGER.debug("[ServerRules] Existing menu file preserved at {}", menuFile);
@@ -209,6 +220,12 @@ public final class DatapackGenerator {
         } catch (IOException e) {
             ServerRules.LOGGER.error("[ServerRules] Failed to generate datapack.", e);
         }
+        return wrote;
+    }
+
+    /** Full pack id as seen by Minecraft's {@code /datapack} command ({@code "file/<name>"}). */
+    public static String getPackId() {
+        return "file/" + DATAPACK_NAME;
     }
 
     /**
