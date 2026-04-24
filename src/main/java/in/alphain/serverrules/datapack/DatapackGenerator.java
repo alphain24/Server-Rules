@@ -18,12 +18,13 @@ import java.nio.file.Path;
  *   data/server_rules/menu/rules.json
  * </pre>
  *
- * The pack is written <em>once</em> on first install; if the
- * {@code pack.mcmeta} marker already exists the generator is a
- * no-op so server owners can freely hand-edit the JSON without
- * having their edits overwritten on subsequent restarts.
+ * {@code pack.mcmeta} is re-written on every startup so pack-format
+ * changes (e.g. a Minecraft version bump) are picked up automatically.
+ * The menu JSON ({@code rules.json}) is only written on first install
+ * so server owners can freely hand-edit it without having their edits
+ * overwritten on subsequent restarts.
  *
- * To force a rebuild, delete the {@code Server Rules} folder
+ * To force a full rebuild, delete the {@code Server Rules} folder
  * and restart the server.
  */
 public final class DatapackGenerator {
@@ -37,19 +38,40 @@ public final class DatapackGenerator {
     /** Menu file name (without {@code .json}) under {@code data/<ns>/menu/}. */
     public static final String MENU_ID = "rules";
 
-    /** Pack format used for the generated {@code pack.mcmeta}. */
-    private static final int PACK_FORMAT = 101;
+    // ---------------------------------------------------------------------
+    // Pack format for Minecraft 26.1.1
+    //
+    // Starting with the 26.x series, Minecraft switched from a single
+    // integer `pack_format` to a pair of `max_format` / `min_format`
+    // fields where the minor version is expressed as a two-element
+    // array: [major, minor]. For 26.1.1 the correct value is
+    // `min_format: [101, 1]` (i.e. 101.1) with `max_format: 101`.
+    // ---------------------------------------------------------------------
+    private static final int MAX_PACK_FORMAT = 101;
+    private static final int MIN_PACK_FORMAT_MAJOR = 101;
+    private static final int MIN_PACK_FORMAT_MINOR = 1;
 
     private static final String PACK_MCMETA = """
             {
               "pack": {
-                "pack_format": 101.1,
-                "description": "Server Rules chest GUI."
+                "description": "Server Rules chest GUI.",
+                "max_format": %d,
+                "min_format": [%d, %d]
               }
             }
-            """.formatted(PACK_FORMAT);
+            """.formatted(MAX_PACK_FORMAT, MIN_PACK_FORMAT_MAJOR, MIN_PACK_FORMAT_MINOR);
 
-    /** Default menu definition written on first install (Inventory Menu schema). */
+    /**
+     * Default menu definition written on first install (Inventory Menu schema).
+     *
+     * Layout (1-indexed {@code [row, col]} inside a 3×9 chest):
+     * <pre>
+     *   Row 2 — three enchanted-book rule categories.
+     *   Row 3 — player-head Accept (alphain) and Decline (_3RACHA) buttons
+     *           that run {@code /rules accept} and {@code /rules decline}
+     *           via Inventory Menu's "command" action.
+     * </pre>
+     */
     private static final String DEFAULT_RULES_JSON = """
             {
               "name": {
@@ -105,6 +127,44 @@ public final class DatapackGenerator {
                       ]
                     }
                   }
+                },
+                {
+                  "type": "item",
+                  "slot": [3, 3],
+                  "item": {
+                    "id": "minecraft:player_head",
+                    "components": {
+                      "profile": {"name": "alphain"},
+                      "custom_name": "§a§lACCEPT",
+                      "lore": [
+                        "§7Click to §aaccept§7 the server rules",
+                        "§7and join the Angel's Server."
+                      ]
+                    }
+                  },
+                  "action": {
+                    "type": "command",
+                    "command": "rules accept"
+                  }
+                },
+                {
+                  "type": "item",
+                  "slot": [3, 7],
+                  "item": {
+                    "id": "minecraft:player_head",
+                    "components": {
+                      "profile": {"name": "_3RACHA"},
+                      "custom_name": "§c§lDECLINE",
+                      "lore": [
+                        "§7Click to §cdecline§7 the server rules.",
+                        "§cYou will be disconnected from the server."
+                      ]
+                    }
+                  },
+                  "action": {
+                    "type": "command",
+                    "command": "rules decline"
+                  }
                 }
               ]
             }
@@ -113,21 +173,39 @@ public final class DatapackGenerator {
     private DatapackGenerator() {}
 
     /**
-     * Generates the datapack in the world's datapack folder only if it
-     * does not already exist. Safe to call on every startup.
+     * Generates the datapack in the world's datapack folder.
+     *
+     * <p>{@code pack.mcmeta} is always refreshed so pack-format bumps
+     * survive a Minecraft update. {@code rules.json} is only written
+     * on first install to preserve operator edits.
      */
     public static void generateIfMissing(MinecraftServer server) {
         try {
             Path datapackDir = server.getWorldPath(LevelResource.DATAPACK_DIR).resolve(DATAPACK_NAME);
-            Path marker = datapackDir.resolve("pack.mcmeta");
+            Files.createDirectories(datapackDir);
 
-            if (Files.exists(marker)) {
-                ServerRules.LOGGER.debug("[ServerRules] Datapack already present at {}, skipping generation.", datapackDir);
-                return;
+            // Always refresh pack.mcmeta so pack-format stays in sync with the server.
+            Path packMeta = datapackDir.resolve("pack.mcmeta");
+            boolean needsWrite = !Files.exists(packMeta) || !Files.readString(packMeta).equals(PACK_MCMETA);
+            if (needsWrite) {
+                Files.writeString(packMeta, PACK_MCMETA);
+                ServerRules.LOGGER.info("[ServerRules] Wrote pack.mcmeta (max_format={}, min_format=[{}, {}]).",
+                        MAX_PACK_FORMAT, MIN_PACK_FORMAT_MAJOR, MIN_PACK_FORMAT_MINOR);
             }
 
-            writeDatapack(datapackDir);
-            ServerRules.LOGGER.info("[ServerRules] Datapack generated at {}", datapackDir);
+            // Only create the menu file on first install.
+            Path menuDir = datapackDir
+                    .resolve("data")
+                    .resolve(MENU_NAMESPACE)
+                    .resolve("menu");
+            Files.createDirectories(menuDir);
+            Path menuFile = menuDir.resolve(MENU_ID + ".json");
+            if (!Files.exists(menuFile)) {
+                Files.writeString(menuFile, DEFAULT_RULES_JSON);
+                ServerRules.LOGGER.info("[ServerRules] Datapack generated at {}", datapackDir);
+            } else {
+                ServerRules.LOGGER.debug("[ServerRules] Existing menu file preserved at {}", menuFile);
+            }
         } catch (IOException e) {
             ServerRules.LOGGER.error("[ServerRules] Failed to generate datapack.", e);
         }

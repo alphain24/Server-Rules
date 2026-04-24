@@ -22,15 +22,23 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Registers the {@code /rules} command tree.
+ * Registers the {@code /rules} command tree along with the standalone
+ * {@code /rules-view} command.
  *
- * Subcommands:
+ * Subcommands of {@code /rules}:
  * <ul>
- *   <li>{@code /rules} - re-opens the rules GUI for the sender.</li>
+ *   <li>{@code /rules} - re-opens the rules GUI for the sender.
+ *       Restricted players get the full freeze + GUI flow; already
+ *       accepted players just get a plain view.</li>
  *   <li>{@code /rules accept} - marks the sender as having accepted.</li>
  *   <li>{@code /rules decline} - kicks the sender.</li>
- *   <li>{@code /rules reload [player]} - op only; resets acceptance data.</li>
+ *   <li>{@code /rules reload [player]} - op only; resets acceptance data
+ *       and immediately re-opens the GUI for any online target.</li>
  * </ul>
+ *
+ * <p>{@code /rules-view} is a separate top-level command available to
+ * every player — it opens the rules menu in view-only mode without
+ * applying any freeze effects so accepted players can re-read the rules.
  */
 public final class RulesCommand {
 
@@ -47,12 +55,20 @@ public final class RulesCommand {
                         .executes(RulesCommand::executeAccept))
                 .then(Commands.literal("decline")
                         .executes(RulesCommand::executeDecline))
+                .then(Commands.literal("view")
+                        .executes(RulesCommand::executeView))
                 .then(Commands.literal("reload")
                         .requires(src -> src.permissions().hasPermission(Permissions.COMMANDS_ADMIN))
                         .executes(RulesCommand::executeReloadAll)
                         .then(Commands.argument("player", StringArgumentType.word())
                                 .suggests(ACCEPTED_PLAYER_SUGGESTIONS)
                                 .executes(RulesCommand::executeReloadPlayer))));
+
+        // Standalone /rules-view command: view-only mode with no freeze
+        // effects, intended for players who have already accepted the
+        // rules and just want a reminder.
+        dispatcher.register(Commands.literal("rules-view")
+                .executes(RulesCommand::executeView));
     }
 
     // -----------------------------------------------------------------
@@ -60,7 +76,21 @@ public final class RulesCommand {
     // -----------------------------------------------------------------
     private static int executeOpen(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        RulesGuiOpener.open(player);
+        if (RulesManager.get().hasAccepted(player)) {
+            // Already accepted — no need to freeze them again.
+            RulesGuiOpener.openMenu(player);
+        } else {
+            RulesGuiOpener.open(player);
+        }
+        return 1;
+    }
+
+    // -----------------------------------------------------------------
+    // /rules view, /rules-view
+    // -----------------------------------------------------------------
+    private static int executeView(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        RulesGuiOpener.openMenu(player);
         return 1;
     }
 
@@ -99,7 +129,15 @@ public final class RulesCommand {
     // /rules reload
     // -----------------------------------------------------------------
     private static int executeReloadAll(CommandContext<CommandSourceStack> ctx) {
+        MinecraftServer server = ctx.getSource().getServer();
         RulesManager.get().clearAllAccepted();
+
+        // Re-open the GUI on every currently-online player so they're
+        // frozen again until they accept the rules.
+        for (ServerPlayer online : server.getPlayerList().getPlayers()) {
+            JoinHandler.onRulesReloaded(online);
+        }
+
         ctx.getSource().sendSuccess(
                 () -> Component.literal("§aCleared all accepted players. Everyone must re-accept the rules."),
                 true);
@@ -120,16 +158,21 @@ public final class RulesCommand {
         }
 
         boolean removed = RulesManager.get().removeAccepted(uuid);
-        if (removed) {
-            final String finalName = name;
-            ctx.getSource().sendSuccess(
-                    () -> Component.literal("§aRemoved acceptance for '" + finalName + "'. They must accept the rules again."),
-                    true);
-            return 1;
+        if (!removed) {
+            ctx.getSource().sendFailure(Component.literal("§c'" + name + "' had no stored acceptance record."));
+            return 0;
         }
 
-        ctx.getSource().sendFailure(Component.literal("§c'" + name + "' had no stored acceptance record."));
-        return 0;
+        // If they're online, re-freeze them and re-open the GUI right away.
+        if (online != null) {
+            JoinHandler.onRulesReloaded(online);
+        }
+
+        final String finalName = name;
+        ctx.getSource().sendSuccess(
+                () -> Component.literal("§aRemoved acceptance for '" + finalName + "'. They must accept the rules again."),
+                true);
+        return 1;
     }
 
     private static UUID findAcceptedUuidByName(String name) {
