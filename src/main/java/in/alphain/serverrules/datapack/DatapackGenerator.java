@@ -39,22 +39,25 @@ public final class DatapackGenerator {
     public static final String MENU_ID = "rules";
 
     // ---------------------------------------------------------------------
-    // Pack format for Minecraft 26.1.1
+    // Pack format range
     //
     // Starting with the 26.x series (Data Pack v101, confirmed in the
     // 26.1 Pre-Release 1 changelog) Minecraft expresses pack versions
     // as [major, minor] pairs. Both `max_format` AND `min_format` must
-    // be arrays — writing `max_format` as a bare integer (e.g. 101) is
-    // silently interpreted as [101, 0] which is LESS than the current
-    // runtime format [101, 1], causing the server to reject the pack
-    // with "this pack was made for a newer/older version of Minecraft"
-    // and park it in `level.dat`'s disabled list.
+    // be arrays — writing a bare integer (e.g. 101) is silently
+    // interpreted as [101, 0] which is LESS than the current runtime
+    // format [101, 1], causing the server to reject the pack with
+    // "this pack was made for a newer/older version of Minecraft" and
+    // park it in `level.dat`'s disabled list.
     //
-    // Reference: vanilla 26.1 data-packs and the Unbreakable datapack
-    // commit 0df0b8a both use [101, 1] for BOTH fields.
+    // We widen the range to [94, 0] .. [101, 1] so the same datapack
+    // loads cleanly on every 1.21+ release up through 26.1.1, matching
+    // the compatibility band Mojang uses in the vanilla built-ins.
     // ---------------------------------------------------------------------
-    private static final int PACK_FORMAT_MAJOR = 101;
-    private static final int PACK_FORMAT_MINOR = 1;
+    private static final int MIN_PACK_FORMAT_MAJOR = 94;
+    private static final int MIN_PACK_FORMAT_MINOR = 0;
+    private static final int MAX_PACK_FORMAT_MAJOR = 101;
+    private static final int MAX_PACK_FORMAT_MINOR = 1;
 
     private static final String PACK_MCMETA = """
             {
@@ -65,8 +68,8 @@ public final class DatapackGenerator {
               }
             }
             """.formatted(
-                    PACK_FORMAT_MAJOR, PACK_FORMAT_MINOR,
-                    PACK_FORMAT_MAJOR, PACK_FORMAT_MINOR);
+                    MIN_PACK_FORMAT_MAJOR, MIN_PACK_FORMAT_MINOR,
+                    MAX_PACK_FORMAT_MAJOR, MAX_PACK_FORMAT_MINOR);
 
     /**
      * Default menu definition written on first install (Inventory Menu schema).
@@ -238,8 +241,9 @@ public final class DatapackGenerator {
             if (needsWrite) {
                 Files.writeString(packMeta, PACK_MCMETA);
                 wrote = true;
-                ServerRules.LOGGER.info("[ServerRules] Wrote pack.mcmeta (format=[{}, {}]).",
-                        PACK_FORMAT_MAJOR, PACK_FORMAT_MINOR);
+                ServerRules.LOGGER.info("[ServerRules] Wrote pack.mcmeta (min=[{}, {}], max=[{}, {}]).",
+                        MIN_PACK_FORMAT_MAJOR, MIN_PACK_FORMAT_MINOR,
+                        MAX_PACK_FORMAT_MAJOR, MAX_PACK_FORMAT_MINOR);
             }
 
             // The menu JSON is normally only created on first install so
