@@ -41,25 +41,32 @@ public final class DatapackGenerator {
     // ---------------------------------------------------------------------
     // Pack format for Minecraft 26.1.1
     //
-    // Starting with the 26.x series, Minecraft switched from a single
-    // integer `pack_format` to a pair of `max_format` / `min_format`
-    // fields where the minor version is expressed as a two-element
-    // array: [major, minor]. For 26.1.1 the correct value is
-    // `min_format: [101, 1]` (i.e. 101.1) with `max_format: 101`.
+    // Starting with the 26.x series (Data Pack v101, confirmed in the
+    // 26.1 Pre-Release 1 changelog) Minecraft expresses pack versions
+    // as [major, minor] pairs. Both `max_format` AND `min_format` must
+    // be arrays — writing `max_format` as a bare integer (e.g. 101) is
+    // silently interpreted as [101, 0] which is LESS than the current
+    // runtime format [101, 1], causing the server to reject the pack
+    // with "this pack was made for a newer/older version of Minecraft"
+    // and park it in `level.dat`'s disabled list.
+    //
+    // Reference: vanilla 26.1 data-packs and the Unbreakable datapack
+    // commit 0df0b8a both use [101, 1] for BOTH fields.
     // ---------------------------------------------------------------------
-    private static final int MAX_PACK_FORMAT = 101;
-    private static final int MIN_PACK_FORMAT_MAJOR = 101;
-    private static final int MIN_PACK_FORMAT_MINOR = 1;
+    private static final int PACK_FORMAT_MAJOR = 101;
+    private static final int PACK_FORMAT_MINOR = 1;
 
     private static final String PACK_MCMETA = """
             {
               "pack": {
                 "description": "Server Rules chest GUI.",
-                "max_format": %d,
-                "min_format": [%d, %d]
+                "min_format": [%d, %d],
+                "max_format": [%d, %d]
               }
             }
-            """.formatted(MAX_PACK_FORMAT, MIN_PACK_FORMAT_MAJOR, MIN_PACK_FORMAT_MINOR);
+            """.formatted(
+                    PACK_FORMAT_MAJOR, PACK_FORMAT_MINOR,
+                    PACK_FORMAT_MAJOR, PACK_FORMAT_MINOR);
 
     /**
      * Default menu definition written on first install (Inventory Menu schema).
@@ -77,23 +84,31 @@ public final class DatapackGenerator {
               "name": {
                 "text": "Server Rules",
                 "color": "dark_blue",
-                "bold": true
+                "bold": true,
+                "italic": false
               },
+              "rows": 3,
               "items": [
                 {
                   "type": "item",
                   "slot": [2, 2],
+                  "sound": "click",
                   "item": {
                     "id": "minecraft:enchanted_book",
                     "components": {
-                      "custom_name": "§bChat Rules",
-                      "lore": [
-                        "§7• No Spamming & Rioting",
-                        "§7• No Harassing & Abusing Others",
-                        "§7• No Sharing Others Information",
-                        "§7• No Advertising or Promotion",
-                        "§7• No Racism, Discrimination or Hate Speech",
-                        "§7• No Death Threats & Suicide Encouragement"
+                      "minecraft:custom_name": {
+                        "text": "Chat Rules",
+                        "color": "aqua",
+                        "bold": true,
+                        "italic": false
+                      },
+                      "minecraft:lore": [
+                        {"text": "\\u2022 No Spamming & Rioting", "color": "gray", "italic": false},
+                        {"text": "\\u2022 No Harassing & Abusing Others", "color": "gray", "italic": false},
+                        {"text": "\\u2022 No Sharing Others Information", "color": "gray", "italic": false},
+                        {"text": "\\u2022 No Advertising or Promotion", "color": "gray", "italic": false},
+                        {"text": "\\u2022 No Racism, Discrimination or Hate Speech", "color": "gray", "italic": false},
+                        {"text": "\\u2022 No Death Threats & Suicide Encouragement", "color": "gray", "italic": false}
                       ]
                     }
                   }
@@ -101,14 +116,20 @@ public final class DatapackGenerator {
                 {
                   "type": "item",
                   "slot": [2, 5],
+                  "sound": "click",
                   "item": {
                     "id": "minecraft:enchanted_book",
                     "components": {
-                      "custom_name": "§aServer Rules",
-                      "lore": [
-                        "§7• Be respectful",
-                        "§7• No exploiting bugs",
-                        "§7• Follow staff instructions"
+                      "minecraft:custom_name": {
+                        "text": "Server Rules",
+                        "color": "green",
+                        "bold": true,
+                        "italic": false
+                      },
+                      "minecraft:lore": [
+                        {"text": "\\u2022 Be respectful", "color": "gray", "italic": false},
+                        {"text": "\\u2022 No exploiting bugs", "color": "gray", "italic": false},
+                        {"text": "\\u2022 Follow staff instructions", "color": "gray", "italic": false}
                       ]
                     }
                   }
@@ -116,14 +137,20 @@ public final class DatapackGenerator {
                 {
                   "type": "item",
                   "slot": [2, 8],
+                  "sound": "click",
                   "item": {
                     "id": "minecraft:enchanted_book",
                     "components": {
-                      "custom_name": "§eGameplay Rules",
-                      "lore": [
-                        "§7• No cheating",
-                        "§7• No unfair advantages",
-                        "§7• Play fair"
+                      "minecraft:custom_name": {
+                        "text": "Gameplay Rules",
+                        "color": "yellow",
+                        "bold": true,
+                        "italic": false
+                      },
+                      "minecraft:lore": [
+                        {"text": "\\u2022 No cheating", "color": "gray", "italic": false},
+                        {"text": "\\u2022 No unfair advantages", "color": "gray", "italic": false},
+                        {"text": "\\u2022 Play fair", "color": "gray", "italic": false}
                       ]
                     }
                   }
@@ -131,14 +158,20 @@ public final class DatapackGenerator {
                 {
                   "type": "item",
                   "slot": [3, 3],
+                  "sound": ["success", "fail"],
                   "item": {
                     "id": "minecraft:player_head",
                     "components": {
-                      "profile": {"name": "alphain"},
-                      "custom_name": "§a§lACCEPT",
-                      "lore": [
-                        "§7Click to §aaccept§7 the server rules",
-                        "§7and join the Angel's Server."
+                      "minecraft:profile": {"name": "alphain"},
+                      "minecraft:custom_name": {
+                        "text": "ACCEPT",
+                        "color": "green",
+                        "bold": true,
+                        "italic": false
+                      },
+                      "minecraft:lore": [
+                        {"text": "Click to accept the server rules", "color": "gray", "italic": false},
+                        {"text": "and join the Angel's Server.", "color": "gray", "italic": false}
                       ]
                     }
                   },
@@ -152,14 +185,20 @@ public final class DatapackGenerator {
                 {
                   "type": "item",
                   "slot": [3, 7],
+                  "sound": ["click", "fail"],
                   "item": {
                     "id": "minecraft:player_head",
                     "components": {
-                      "profile": {"name": "_3RACHA"},
-                      "custom_name": "§c§lDECLINE",
-                      "lore": [
-                        "§7Click to §cdecline§7 the server rules.",
-                        "§cYou will be disconnected from the server."
+                      "minecraft:profile": {"name": "_3RACHA"},
+                      "minecraft:custom_name": {
+                        "text": "DECLINE",
+                        "color": "red",
+                        "bold": true,
+                        "italic": false
+                      },
+                      "minecraft:lore": [
+                        {"text": "Click to decline the server rules.", "color": "gray", "italic": false},
+                        {"text": "You will be disconnected from the server.", "color": "red", "italic": false}
                       ]
                     }
                   },
@@ -199,23 +238,45 @@ public final class DatapackGenerator {
             if (needsWrite) {
                 Files.writeString(packMeta, PACK_MCMETA);
                 wrote = true;
-                ServerRules.LOGGER.info("[ServerRules] Wrote pack.mcmeta (max_format={}, min_format=[{}, {}]).",
-                        MAX_PACK_FORMAT, MIN_PACK_FORMAT_MAJOR, MIN_PACK_FORMAT_MINOR);
+                ServerRules.LOGGER.info("[ServerRules] Wrote pack.mcmeta (format=[{}, {}]).",
+                        PACK_FORMAT_MAJOR, PACK_FORMAT_MINOR);
             }
 
-            // Only create the menu file on first install.
+            // The menu JSON is normally only created on first install so
+            // server owners can hand-edit it. However, worlds that ran
+            // earlier builds have a rules.json that predates the
+            // accept/decline player-head buttons — detect that case by
+            // probing for the two click-command strings and force-upgrade.
+            // Admins who want to opt out of this migration can create an
+            // empty `.customized` marker file next to rules.json.
             Path menuDir = datapackDir
                     .resolve("data")
                     .resolve(MENU_NAMESPACE)
                     .resolve("menu");
             Files.createDirectories(menuDir);
             Path menuFile = menuDir.resolve(MENU_ID + ".json");
+            Path customizedMarker = menuDir.resolve(".customized");
+
             if (!Files.exists(menuFile)) {
                 Files.writeString(menuFile, DEFAULT_RULES_JSON);
                 wrote = true;
                 ServerRules.LOGGER.info("[ServerRules] Datapack generated at {}", datapackDir);
+            } else if (!Files.exists(customizedMarker)) {
+                String existing = Files.readString(menuFile);
+                boolean hasAccept = existing.contains("rules accept");
+                boolean hasDecline = existing.contains("rules decline");
+                if (!hasAccept || !hasDecline) {
+                    Files.writeString(menuFile, DEFAULT_RULES_JSON);
+                    wrote = true;
+                    ServerRules.LOGGER.info(
+                            "[ServerRules] Upgraded legacy menu file at {} (missing accept/decline buttons). " +
+                            "Create an empty '.customized' file next to it to skip future auto-upgrades.",
+                            menuFile);
+                } else {
+                    ServerRules.LOGGER.debug("[ServerRules] Existing menu file preserved at {}", menuFile);
+                }
             } else {
-                ServerRules.LOGGER.debug("[ServerRules] Existing menu file preserved at {}", menuFile);
+                ServerRules.LOGGER.debug("[ServerRules] Menu file marked customized — preserving {}", menuFile);
             }
         } catch (IOException e) {
             ServerRules.LOGGER.error("[ServerRules] Failed to generate datapack.", e);
